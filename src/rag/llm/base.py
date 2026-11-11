@@ -8,12 +8,20 @@ class LLMError(RuntimeError):
     """Error genérico de un proveedor LLM (el mensaje nunca contiene credenciales)."""
 
 
-class RateLimitError(LLMError):
-    """HTTP 429 / cuota excedida. Reintentable."""
+class RetryableError(LLMError):
+    """Error transitorio del servidor: tiene sentido reintentar con backoff."""
 
     def __init__(self, message: str, retry_after: float | None = None):
         super().__init__(message)
         self.retry_after = retry_after
+
+
+class RateLimitError(RetryableError):
+    """HTTP 429 / cuota excedida."""
+
+
+class ServiceUnavailableError(RetryableError):
+    """HTTP 503 (o 529 en Claude): servicio saturado o no disponible temporalmente."""
 
 
 class ModelNotFoundError(LLMError):

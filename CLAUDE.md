@@ -26,7 +26,21 @@ Sistema RAG empresarial: responde preguntas sobre PDF, DOCX y TXT de `data/`, ci
 - Tras cada etapa: detenerse para revisión del usuario antes de seguir.
 - Etapas: 1 base · 2 ingesta · 3 embeddings+vectorstore · 4 proveedores LLM · 5 servicio RAG ·
   6 API FastAPI · 7 UI Streamlit · 8 evaluación · 9 Docker+README.
-- Etapas 1, 2, 3 y 4 completadas.
+- Etapas 1, 2, 3, 4 y 5 completadas.
+
+## Servicio RAG (etapa 5)
+- Flujo: `Retriever.retrieve` -> `build_prompt` -> `LLMProvider.generate` -> `Answer(text, found, sources)` (`rag_service.py`).
+- **Umbral `MIN_RELEVANCE=0.80`** calibrado con e5-base: top-1 en dominio 0.82–0.88; fuera de tema 0.71–0.82 (solapan un poco).
+  Se prefiere recall: lo dudoso pasa al LLM, que responde "No encontré esa información…" por regla del prompt.
+  Si no hay pasajes sobre el umbral, NO se llama al LLM. Recalibrar si cambia el modelo de embeddings.
+- **Agrupación de duplicados** (`are_near_duplicates`): texto normalizado con ratio ≥ `DEDUP_SIMILARITY` (0.9) Y mismos números.
+  Ignora etiquetas de página ("1.42") y contadores de sección "(3/3)". Si cambia un dato entre ediciones, NO se agrupan y el
+  LLM ve ambos (el prompt le pide indicar qué dice cada archivo). Un pasaje agrupado lleva todas sus fuentes.
+- **Fuentes**: salen de los pasajes del retriever (todos los enviados al LLM), nunca del texto del modelo. Si el modelo
+  responde "no encontré", `found=False` y `sources=()`. Limitación conocida: la lista incluye pasajes enviados aunque el
+  modelo no los cite en el texto.
+- Reintentos (backoff) cubren 429 **y 503** (`RetryableError`; 529 en Claude). 504 no se reintenta.
+- CLI: `python -m rag.cli ask "pregunta" [--show-context]`.
 
 ## Proveedores LLM (etapa 4)
 - `rag.llm`: `LLMProvider.generate(prompt, system=None)` + `list_models()`; `get_provider(name)` elige según `LLM_PROVIDER`.

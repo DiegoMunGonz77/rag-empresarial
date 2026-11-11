@@ -4,7 +4,7 @@ from rag.config import Settings
 def test_defaults():
     s = Settings(_env_file=None)
     assert s.llm_provider == "gemini"
-    assert s.gemini_model == "gemini-2.5-flash"
+    assert s.gemini_model == "gemini-3.5-flash"
     assert s.chunk_overlap < s.chunk_size
 
 

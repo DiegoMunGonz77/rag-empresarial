@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     # LLM
     llm_provider: str = "gemini"  # gemini | ollama | claude
     gemini_api_key: SecretStr = SecretStr("")  # SecretStr: no aparece en repr ni logs
-    gemini_model: str = "gemini-2.5-flash"
+    gemini_model: str = "gemini-3.5-flash"
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.1"
     anthropic_api_key: SecretStr = SecretStr("")
@@ -32,7 +32,8 @@ class Settings(BaseSettings):
     chunk_size: int = 1000
     chunk_overlap: int = 200
     top_k: int = 5
-    min_relevance: float = 0.3
+    min_relevance: float = 0.80  # calibrado para multilingual-e5-base (ver CLAUDE.md)
+    dedup_similarity: float = 0.9
 
 
 @lru_cache

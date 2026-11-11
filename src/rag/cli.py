@@ -31,6 +31,10 @@ def main(argv: list[str] | None = None) -> int:
     p_search = sub.add_parser("search", help="Búsqueda semántica en el índice")
     p_search.add_argument("query")
     p_search.add_argument("-k", type=int, default=get_settings().top_k)
+    p_ask = sub.add_parser("ask", help="Pregunta al asistente RAG (recupera + LLM + fuentes)")
+    p_ask.add_argument("question")
+    p_ask.add_argument("--provider", default=None)
+    p_ask.add_argument("--show-context", action="store_true", help="Muestra los pasajes enviados")
     p_llm = sub.add_parser("llm", help="Pregunta directa al proveedor LLM (sin RAG)")
     p_llm.add_argument("prompt")
     p_llm.add_argument("--provider", default=None)
@@ -55,7 +59,21 @@ def main(argv: list[str] | None = None) -> int:
     else:
         try:
             provider = get_provider(args.provider)
-            if args.cmd == "models":
+            if args.cmd == "ask":
+                from rag.rag_service import RagService
+                from rag.retriever import Retriever
+
+                answer = RagService(Retriever(_store()), provider).ask(args.question)
+                if args.show_context:
+                    for i, p in enumerate(answer.passages, start=1):
+                        files = "; ".join(str(s) for s in p.sources)
+                        print(f"[contexto {i}] sim={p.score:.3f} | {files}")
+                print(answer.text)
+                if answer.sources:
+                    print("\nFuentes:")
+                    for ref in answer.sources:
+                        print(f"  - {ref}")
+            elif args.cmd == "models":
                 print(f"Modelos de {provider.name} (configurado: {provider.model}):")
                 print("\n".join(f"  {m}" for m in provider.list_models()))
             else:

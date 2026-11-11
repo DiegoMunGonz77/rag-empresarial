@@ -3,7 +3,13 @@ from __future__ import annotations
 
 from rag.config import get_settings
 
-from .base import LLMError, LLMProvider, ModelNotFoundError, RateLimitError
+from .base import (
+    LLMError,
+    LLMProvider,
+    ModelNotFoundError,
+    RateLimitError,
+    ServiceUnavailableError,
+)
 from .retry import call_with_retry
 
 
@@ -46,6 +52,8 @@ class GeminiProvider(LLMProvider):
         msg = self._redact(str(exc))
         if code == 429:
             return RateLimitError(f"Gemini 429 (cuota/límite): {msg}")
+        if code == 503:
+            return ServiceUnavailableError(f"Gemini 503 (servicio no disponible): {msg}")
         if code == 404 or (code == 400 and "model" in msg.lower() and "not" in msg.lower()):
             return ModelNotFoundError(f"Modelo '{self.model}' no disponible: {msg}")
         return LLMError(f"Error de Gemini ({code}): {msg}")

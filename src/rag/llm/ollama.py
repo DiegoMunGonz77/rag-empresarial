@@ -5,7 +5,13 @@ import requests
 
 from rag.config import get_settings
 
-from .base import LLMError, LLMProvider, ModelNotFoundError, RateLimitError
+from .base import (
+    LLMError,
+    LLMProvider,
+    ModelNotFoundError,
+    RateLimitError,
+    ServiceUnavailableError,
+)
 from .retry import call_with_retry
 
 
@@ -43,6 +49,8 @@ class OllamaProvider(LLMProvider):
             raise LLMError(f"No se pudo conectar con Ollama en {self.base_url}: {exc}") from None
         if resp.status_code == 429:
             raise RateLimitError("Ollama 429", _retry_after(resp))
+        if resp.status_code == 503:
+            raise ServiceUnavailableError("Ollama 503", _retry_after(resp))
         if resp.status_code == 404:
             raise ModelNotFoundError(
                 f"Modelo '{self.model}' no encontrado en Ollama (prueba `ollama pull {self.model}`)"

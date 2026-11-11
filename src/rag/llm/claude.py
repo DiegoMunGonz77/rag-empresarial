@@ -3,7 +3,13 @@ from __future__ import annotations
 
 from rag.config import get_settings
 
-from .base import LLMError, LLMProvider, ModelNotFoundError, RateLimitError
+from .base import (
+    LLMError,
+    LLMProvider,
+    ModelNotFoundError,
+    RateLimitError,
+    ServiceUnavailableError,
+)
 from .retry import call_with_retry
 
 
@@ -55,14 +61,15 @@ class ClaudeProvider(LLMProvider):
         except Exception as exc:
             status = getattr(exc, "status_code", None)
             text = self._redact(str(exc))
-            if status == 429:
+            if status in (429, 503, 529):  # 529 = overloaded en la API de Anthropic
                 response = getattr(exc, "response", None)
                 headers = getattr(response, "headers", None) or {}
                 try:
                     retry_after = float(headers.get("retry-after"))
                 except (TypeError, ValueError):
                     retry_after = None
-                raise RateLimitError(f"Claude 429: {text}", retry_after) from None
+                error_cls = RateLimitError if status == 429 else ServiceUnavailableError
+                raise error_cls(f"Claude {status}: {text}", retry_after) from None
             if status == 404:
                 raise ModelNotFoundError(f"Modelo '{self.model}' no disponible: {text}") from None
             if status is not None:

@@ -6,6 +6,7 @@ from google.genai import errors as genai_errors
 
 from rag.config import Settings
 from rag.llm import LLMError, ModelNotFoundError, RateLimitError, get_provider
+from rag.llm.base import ServiceUnavailableError
 from rag.llm.claude import ClaudeProvider
 from rag.llm.gemini import GeminiProvider
 from rag.llm.ollama import OllamaProvider
@@ -54,6 +55,42 @@ def test_retry_honors_retry_after_and_caps_delay():
 
     call_with_retry(fn, 5, 1.0, sleeps.append, jitter=lambda: 0)
     assert sleeps == [10.0, 60.0]
+
+
+def test_retry_covers_503_and_mixed_transient_errors():
+    sleeps = []
+    attempts = iter([ServiceUnavailableError("503"), RateLimitError("429"), "ok"])
+
+    def fn():
+        v = next(attempts)
+        if isinstance(v, Exception):
+            raise v
+        return v
+
+    assert call_with_retry(fn, 5, 1.0, sleeps.append, jitter=lambda: 0) == "ok"
+    assert sleeps == [1.0, 2.0]
+
+
+def test_gemini_retries_503_then_succeeds():
+    provider, client = _gemini([_api_error(503, "UNAVAILABLE"), "recuperado"])
+    assert provider.generate("q") == "recuperado"
+    assert len(client.calls) == 2
+
+
+def test_gemini_503_exhausted_raises_service_unavailable():
+    provider, client = _gemini([_api_error(503)] * 10, max_retries=2)
+    with pytest.raises(ServiceUnavailableError):
+        provider.generate("q")
+    assert len(client.calls) == 3
+
+
+def test_ollama_and_claude_retry_503():
+    session = FakeSession([FakeResponse(503), FakeResponse(body={"response": "ok"})])
+    assert OllamaProvider(session=session, retry_base_delay=0).generate("q") == "ok"
+    for status in (503, 529):
+        client = FakeAnthropicClient([FakeAnthropicError(status), "ok"])
+        assert ClaudeProvider(api_key="k", client=client, retry_base_delay=0).generate("q") == "ok"
+        assert len(client.calls) == 2
 
 
 def test_retry_does_not_retry_other_errors():
