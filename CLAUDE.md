@@ -24,4 +24,12 @@ Sistema RAG empresarial: responde preguntas sobre PDF, DOCX y TXT de `data/`, ci
 - Tras cada etapa: detenerse para revisión del usuario antes de seguir.
 - Etapas: 1 base · 2 ingesta · 3 embeddings+vectorstore · 4 proveedores LLM · 5 servicio RAG ·
   6 API FastAPI · 7 UI Streamlit · 8 evaluación · 9 Docker+README.
-- Etapa actual: 1 completada.
+- Etapas 1 y 2 completadas.
+
+## Ingesta (etapa 2)
+- Loaders devuelven `Page(text, source, page)`. PDF: página real (pypdf). DOCX: se numera por saltos de
+  página explícitos (si no hay, todo es página 1); incluye tablas. TXT: `\f` separa páginas; utf-8 con fallback latin-1.
+- `load_directory` no es recursivo y omite (con log) archivos ilegibles.
+- El chunker corta por caracteres (1000 / overlap 200 por defecto), prefiere límites de párrafo/frase y
+  **nunca cruza páginas**, para que la cita de página sea exacta. Id de chunk: `archivo::pN::cK`.
+- `data/*.pdf` está en `.gitignore` (manuales con copyright); los tests generan sus propios archivos en `tmp_path`.
