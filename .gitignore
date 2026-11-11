@@ -1,0 +1,25 @@
+# Secretos
+.env
+
+# Entornos y caches de Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+build/
+dist/
+
+# Base vectorial persistente
+chroma_db/
+
+# Resultados de evaluación locales
+eval/results/
+
+# Editor / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
