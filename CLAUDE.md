@@ -9,7 +9,9 @@ Sistema RAG empresarial: responde preguntas sobre PDF, DOCX y TXT de `data/`, ci
 - Windows + PowerShell; `gh` autenticado por el usuario (no pedir ni manejar credenciales).
 
 ## Decisiones
-- **Embeddings:** sentence-transformers, `paraphrase-multilingual-MiniLM-L12-v2`, locales.
+- **Embeddings:** sentence-transformers, `intfloat/multilingual-e5-base` (locales, 512 tokens, prefijos
+  `query: `/`passage: ` aplicados en `SentenceTransformerEmbedder`). Se descartó
+  `paraphrase-multilingual-MiniLM-L12-v2`: su ventana es de 128 tokens y truncaba el 75 % de los chunks de 1000 caracteres.
 - **Vector store:** ChromaDB persistente en `chroma_db/` (ignorado por git).
 - **LLM:** interfaz `LLMProvider`. `GeminiProvider` por defecto (`GEMINI_API_KEY` en `.env`,
   modelo en `GEMINI_MODEL`, inicial `gemini-2.5-flash`). `OllamaProvider` y `ClaudeProvider` opcionales.
@@ -24,7 +26,15 @@ Sistema RAG empresarial: responde preguntas sobre PDF, DOCX y TXT de `data/`, ci
 - Tras cada etapa: detenerse para revisión del usuario antes de seguir.
 - Etapas: 1 base · 2 ingesta · 3 embeddings+vectorstore · 4 proveedores LLM · 5 servicio RAG ·
   6 API FastAPI · 7 UI Streamlit · 8 evaluación · 9 Docker+README.
-- Etapas 1 y 2 completadas.
+- Etapas 1, 2 y 3 completadas.
+
+## Vector store e indexación (etapa 3)
+- `VectorStore` (ChromaDB persistente, coseno): `add_chunks`, `search`, `delete_source`, `indexed_files`.
+  Guarda el modelo de embeddings en la colección; si cambia lanza `EmbeddingModelMismatch` (borrar `chroma_db/`).
+- Indexación incremental (`index_directory`): huella = sha256 del archivo + chunk_size + overlap.
+  Solo reindexa archivos nuevos/modificados y borra del índice los desaparecidos. Un archivo roto se omite.
+- CLI: `python -m rag.cli index` / `python -m rag.cli search "pregunta"`.
+- Tests usan `tests/fakes.py::FakeEmbedder` (sin descargar modelos).
 
 ## Ingesta (etapa 2)
 - Loaders devuelven `Page(text, source, page)`. PDF: página real (pypdf). DOCX: se numera por saltos de
@@ -32,4 +42,8 @@ Sistema RAG empresarial: responde preguntas sobre PDF, DOCX y TXT de `data/`, ci
 - `load_directory` no es recursivo y omite (con log) archivos ilegibles.
 - El chunker corta por caracteres (1000 / overlap 200 por defecto), prefiere límites de párrafo/frase y
   **nunca cruza páginas**, para que la cita de página sea exacta. Id de chunk: `archivo::pN::cK`.
+- PDF: se unen palabras cortadas con guion (`dehyphenate`) y se colapsan los puntos guía de índices
+  (`collapse_dot_leaders`; cada punto era un token y una página de índice llegaba a 834 tokens).
+  Con eso, chunks de 1000/200 miden ≤286 tokens en los manuales reales: 0 % truncados con e5 (ventana 512).
+  Si se cambia el modelo o el chunking, re-verificar tokens vs. ventana.
 - `data/*.pdf` está en `.gitignore` (manuales con copyright); los tests generan sus propios archivos en `tmp_path`.

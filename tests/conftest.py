@@ -19,8 +19,12 @@ def build_pdf(page_texts: list[str]) -> bytes:
             f"/Resources << /Font << /F1 {font_id} 0 R >> >> "
             f"/Contents {content_id} 0 R >>".encode()
         )
-        safe = text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
-        stream = f"BT /F1 12 Tf 72 720 Td ({safe}) Tj ET".encode("latin-1")
+        lines = [
+            ln.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+            for ln in text.split("\n")
+        ]
+        shown = " T* ".join(f"({ln}) Tj" for ln in lines)
+        stream = f"BT /F1 12 Tf 72 720 Td 14 TL {shown} ET".encode("latin-1")
         objs.append(b"<< /Length %d >>\nstream\n" % len(stream) + stream + b"\nendstream")
     objs.append(b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>")
 

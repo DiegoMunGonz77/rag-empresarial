@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     # RAG
     data_dir: Path = PROJECT_ROOT / "data"
     chroma_dir: Path = PROJECT_ROOT / "chroma_db"
-    embedding_model: str = "paraphrase-multilingual-MiniLM-L12-v2"
+    embedding_model: str = "intfloat/multilingual-e5-base"  # ventana de 512 tokens
     chunk_size: int = 1000
     chunk_overlap: int = 200
     top_k: int = 5

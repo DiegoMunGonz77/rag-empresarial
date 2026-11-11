@@ -1,7 +1,10 @@
 import pytest
 
+from tests.conftest import build_pdf
 from rag.ingestion.loaders import (
     Page,
+    collapse_dot_leaders,
+    dehyphenate,
     load_directory,
     load_docx,
     load_document,
@@ -16,6 +19,31 @@ def test_load_pdf_pages_and_metadata(pdf_file):
     assert all(p.source == "manual.pdf" for p in pages)
     assert "Primera pagina" in pages[0].text
     assert "frenos" in pages[1].text
+
+
+def test_dehyphenate_joins_split_words_only():
+    assert dehyphenate("los asientos de-\nlanteros") == "los asientos delanteros"
+    assert dehyphenate("pa-  \n  rabrisas") == "parabrisas"
+    assert dehyphenate("ver\r\nsiguiente") == "ver\r\nsiguiente"
+    # No une si el guion es de lista, rango o precede a mayúscula/dígito
+    assert dehyphenate("opciones:\n- primera") == "opciones:\n- primera"
+    assert dehyphenate("modelo A-\n2019") == "modelo A-\n2019"
+    assert dehyphenate("Mercedes-\nBenz") == "Mercedes-\nBenz"
+
+
+def test_collapse_dot_leaders():
+    src = "Escobillas . . . . . . . . . . . . 5.18\nFrenos.......... 5.20\nFin de frase. Otra."
+    out = collapse_dot_leaders(src)
+    assert out == "Escobillas ...  5.18\nFrenos ...  5.20\nFin de frase. Otra."
+    assert collapse_dot_leaders("a... b") == "a... b"  # puntos suspensivos normales intactos
+
+
+def test_load_pdf_dehyphenates(tmp_path):
+    path = tmp_path / "guiones.pdf"
+    path.write_bytes(build_pdf(["Los asientos de-\nlanteros se regulan"]))
+    text = load_pdf(path)[0].text
+    assert "delanteros" in text
+    assert "de-" not in text
 
 
 def test_load_docx_splits_on_page_break_and_reads_tables(docx_file):

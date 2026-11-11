@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -23,11 +24,35 @@ class Page:
     page: int  # 1-indexado
 
 
+_HYPHEN_BREAK = re.compile(r"(?<=[a-záéíóúüñ])-[ \t]*\r?\n[ \t]*(?=[a-záéíóúüñ])")
+
+
+def dehyphenate(text: str) -> str:
+    """Une palabras cortadas con guion al final de línea ("de-\\nlanteros" -> "delanteros").
+
+    Solo une si ambos lados son minúsculas, para no romper listas ni siglas.
+    Compuestos con guion real partidos justo en el salto ("anti-\\nrobo") se unirán
+    como "antirobo"; es un compromiso aceptable para búsqueda semántica.
+    """
+    return _HYPHEN_BREAK.sub("", text)
+
+
+_DOT_LEADER = re.compile(r"(?:[ \t]*\.){4,}")
+
+
+def collapse_dot_leaders(text: str) -> str:
+    """Reduce los puntos guía de los índices ("Frenos . . . . . 5.16" -> "Frenos ... 5.16").
+
+    Cada punto cuenta como un token: una página de índice podía superar la ventana del modelo.
+    """
+    return _DOT_LEADER.sub(" ... ", text)
+
+
 def load_pdf(path: Path) -> list[Page]:
     reader = PdfReader(str(path))
     pages = []
     for number, pdf_page in enumerate(reader.pages, start=1):
-        text = (pdf_page.extract_text() or "").strip()
+        text = collapse_dot_leaders(dehyphenate(pdf_page.extract_text() or "")).strip()
         if text:
             pages.append(Page(text, path.name, number))
     return pages
