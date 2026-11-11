@@ -26,7 +26,17 @@ Sistema RAG empresarial: responde preguntas sobre PDF, DOCX y TXT de `data/`, ci
 - Tras cada etapa: detenerse para revisión del usuario antes de seguir.
 - Etapas: 1 base · 2 ingesta · 3 embeddings+vectorstore · 4 proveedores LLM · 5 servicio RAG ·
   6 API FastAPI · 7 UI Streamlit · 8 evaluación · 9 Docker+README.
-- Etapas 1, 2 y 3 completadas.
+- Etapas 1, 2, 3 y 4 completadas.
+
+## Proveedores LLM (etapa 4)
+- `rag.llm`: `LLMProvider.generate(prompt, system=None)` + `list_models()`; `get_provider(name)` elige según `LLM_PROVIDER`.
+- Errores propios: `LLMError`, `RateLimitError` (429, reintentable), `ModelNotFoundError`. Solo el 429 se reintenta
+  (`call_with_retry`: backoff 1,2,4,… s + jitter, respeta `retry_after`, tope 60 s, `LLM_MAX_RETRIES`).
+- Las keys son `SecretStr` (no salen en repr) y los mensajes de error las redactan. Nunca imprimir ni leer `.env` en voz alta.
+- Timeout HTTP en Gemini = `LLM_TIMEOUT` (60 s).
+- `python -m rag.cli llm "..."` y `python -m rag.cli models` para probar el proveedor.
+- `gemini-2.5-flash` ya NO está disponible para la key del usuario (404). Medido: `gemini-3.5-flash` responde en ~5 s;
+  `gemini-3.8-flash` fue lento (timeout 60 s) y `gemini-3.7-flash` dio 503. Modelo recomendado: `gemini-3.5-flash`.
 
 ## Vector store e indexación (etapa 3)
 - `VectorStore` (ChromaDB persistente, coseno): `add_chunks`, `search`, `delete_source`, `indexed_files`.

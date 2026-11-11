@@ -2,6 +2,7 @@
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -14,13 +15,15 @@ class Settings(BaseSettings):
 
     # LLM
     llm_provider: str = "gemini"  # gemini | ollama | claude
-    gemini_api_key: str = ""
+    gemini_api_key: SecretStr = SecretStr("")  # SecretStr: no aparece en repr ni logs
     gemini_model: str = "gemini-2.5-flash"
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.1"
-    anthropic_api_key: str = ""
+    anthropic_api_key: SecretStr = SecretStr("")
     claude_model: str = "claude-sonnet-5-5"
     llm_max_retries: int = 5
+    llm_retry_base_delay: float = 1.0  # segundos; se duplica en cada reintento
+    llm_timeout: float = 60.0
 
     # RAG
     data_dir: Path = PROJECT_ROOT / "data"
